@@ -1,4 +1,4 @@
-name: AI News Daily Deployment
+name: Daily Deployment
 
 on:
   schedule:
