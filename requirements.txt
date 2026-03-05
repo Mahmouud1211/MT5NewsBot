@@ -1,1 +1,4 @@
-"feedparser`nrequests`ngoogle-generativeai"
+google-genai
+python-dotenv
+nrequests
+feedparser
