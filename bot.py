@@ -30,7 +30,7 @@ def get_latest_news():
 def summarize_news(news_items):
     genai.configure(api_key=GEMINI_API_KEY)
     # استخدام النموذج المجاني والسريع
-    model = genai.GenerativeModel('gemini-2.5-flash-preview-09-2025')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
     prompt = "أنت محرر أخبار تقنية خبير. قم بتلخيص أخبار الذكاء الاصطناعي التالية باللغة العربية بطريقة جذابة ومختصرة تناسب قناة تيليجرام. استخدم النقاط (Bullet points) وأضف إيموجي مناسب. في النهاية ضع روابط المصادر.\n\nالأخبار:\n"
     for item in news_items:
