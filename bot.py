@@ -1,7 +1,6 @@
 import os
 import requests
 from google import genai
-from google.genai import types
 
 def get_ai_summary(prompt):
     """استدعاء نموذج جيميناي للحصول على ملخص أو محتوى"""
@@ -10,13 +9,12 @@ def get_ai_summary(prompt):
         print("Error: GEMINI_API_KEY not found!")
         return None
 
-    # استخدام مكتبة google-genai الجديدة
     client = genai.Client(api_key=api_key)
     
     try:
-        # gemini-2.0-flash هو الأفضل حالياً من حيث السرعة والمجانية
+        # gemini-2.5-flash هو النموذج المستقر والمجاني المتاح حالياً
         response = client.models.generate_content(
-            model="Gemini 3.1 Flash", 
+            model="gemini-2.5-flash", 
             contents=prompt
         )
         return response.text
@@ -50,9 +48,19 @@ def send_telegram_message(message):
         print(f"Telegram Connection Error: {e}")
 
 def main():
-    # هنا يمكنك وضع المنطق الخاص بجمع الأخبار أو المحتوى
-    # كمثال: سنطلب من الذكاء الاصطناعي تلخيص أهم أخبار التقنية اليوم
     prompt = "اعطني ملخصاً سريعاً لأهم 3 أخبار تقنية عالمية اليوم باللغة العربية مع روابط المصادر إن أمكن."
+    
+    print("Generating content with Gemini 2.5 Flash...")
+    ai_content = get_ai_summary(prompt)
+    
+    if ai_content:
+        final_message = f"🚀 *نشرة الذكاء الاصطناعي اليومية*:\n\n{ai_content}"
+        send_telegram_message(final_message)
+    else:
+        print("Failed to generate content.")
+
+if __name__ == "__main__":
+    main()
     
     print("Generating content with Gemini 3.1 Flash...")
     ai_content = get_ai_summary(prompt)
