@@ -1,4 +1,4 @@
 google-genai
 python-dotenv
-nrequests
+requests
 feedparser
