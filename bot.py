@@ -16,7 +16,7 @@ def get_ai_summary(prompt):
     try:
         # gemini-2.0-flash هو الأفضل حالياً من حيث السرعة والمجانية
         response = client.models.generate_content(
-            model="gemini-2.0-flash", 
+            model="Gemini 3.1 Flash", 
             contents=prompt
         )
         return response.text
