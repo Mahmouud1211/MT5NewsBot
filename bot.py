@@ -55,7 +55,8 @@ def run_bot():
         res = requests.post(url, json={
             "chat_id": CHAT_ID,
             "text": summary,
-            "parse_mode": "Markdown"
+            "parse_mode": "HTML"
+
         })
         
         if res.status_code == 200:
