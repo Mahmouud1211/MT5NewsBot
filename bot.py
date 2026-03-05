@@ -33,7 +33,7 @@ def run_bot():
         
         # تجربة gemini-1.5-flash مباشرة بالصيغة الصحيحة لعام 2026
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash",
             contents=f"لخص الأخبار التالية لمتداولي الأسهم والذهب بالعربية بأسلوب نقاط مشوق مع إيموجي:\n{news_text}"
         )
         
