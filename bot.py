@@ -54,7 +54,7 @@ def main():
     # كمثال: سنطلب من الذكاء الاصطناعي تلخيص أهم أخبار التقنية اليوم
     prompt = "اعطني ملخصاً سريعاً لأهم 3 أخبار تقنية عالمية اليوم باللغة العربية مع روابط المصادر إن أمكن."
     
-    print("Generating content with Gemini 2.0 Flash...")
+    print("Generating content with Gemini 3.1 Flash...")
     ai_content = get_ai_summary(prompt)
     
     if ai_content:
