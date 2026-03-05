@@ -1,66 +1,67 @@
 import feedparser
 import requests
 import os
-import google.generativeai as genai
+import sys
+from google import genai
 
-# ==========================================
-# 1. إعدادات المفاتيح (تُجلب من GitHub Secrets)
-# ==========================================
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+# جلب الإعدادات
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
-# ==========================================
-# 2. مصادر الأخبار (RSS Feeds)
-# ==========================================
-RSS_FEEDS = [
+RSS_SOURCES = [
     "https://techcrunch.com/category/artificial-intelligence/feed/",
-    "https://export.arxiv.org/rss/cs.AI" # أبحاث الذكاء الاصطناعي
+    "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml"
 ]
 
-def get_latest_news():
-    news_items = []
-    for url in RSS_FEEDS:
-        feed = feedparser.parse(url)
-        # جلب أول خبرين من كل مصدر لتجنب الإطالة
-        for entry in feed.entries[:2]:
-            news_items.append({"title": entry.title, "link": entry.link, "summary": entry.get("summary", "")})
-    return news_items
-
-def summarize_news(news_items):
-    genai.configure(api_key=GEMINI_API_KEY)
-    # استخدام النموذج المجاني والسريع
-    model = genai.GenerativeModel('gemini-2.0-flash')
-    
-    prompt = "أنت محرر أخبار تقنية خبير. قم بتلخيص أخبار الذكاء الاصطناعي التالية باللغة العربية بطريقة جذابة ومختصرة تناسب قناة تيليجرام. استخدم النقاط (Bullet points) وأضف إيموجي مناسب. في النهاية ضع روابط المصادر.\n\nالأخبار:\n"
-    for item in news_items:
-        prompt += f"- العنوان: {item['title']}\n التفاصيل: {item['summary']}\n الرابط: {item['link']}\n\n"
+def fetch_and_summarize():
+    if not GEMINI_KEY:
+        print("❌ خطأ: مفتاح GEMINI_API_KEY مفقود!")
+        sys.exit(1)
         
-    response = model.generate_content(prompt)
-    return response.text
+    print("جاري جلب الأخبار...")
+    news_feed = ""
+    for url in RSS_SOURCES:
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:2]:
+            news_feed += f"Title: {entry.title}\nDescription: {entry.summary[:300]}\n\n"
+    
+    if not news_feed:
+        print("لا توجد أخبار جديدة حالياً.")
+        sys.exit(0)
 
-def send_to_telegram(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "Markdown"
-    }
-    response = requests.post(url, json=payload)
-    if response.status_code == 200:
-        print("تم إرسال الملخص إلى تيليجرام بنجاح!")
-    else:
-        print(f"فشل الإرسال: {response.text}")
+    print("جاري الاتصال بـ Gemini (النسخة الحديثة)...")
+    try:
+        # استخدام المكتبة الجديدة والنموذج المعتمد 2.0
+        client = genai.Client(api_key=GEMINI_KEY)
+        prompt = f"أنت محرر تقني. لخص الأخبار التالية لمتداولي MT5 بالعربية في نقاط قصيرة جداً مع إيموجي:\n{news_feed}"
+        
+        response = client.models.generate_content(
+            model='gemini-2.0-flash',
+            contents=prompt,
+        )
+        return response.text
+    except Exception as e:
+        print(f"❌ خطأ من Gemini: {str(e)}")
+        sys.exit(1)
+
+def send_telegram(message):
+    try:
+        print("جاري النشر على تيليجرام...")
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
+        res = requests.post(url, json=payload)
+        
+        if res.status_code == 200:
+            print("✅ تم النشر بنجاح!")
+        else:
+            print(f"❌ خطأ من تيليجرام: {res.text}")
+            sys.exit(1)
+    except Exception as e:
+        print(f"❌ خطأ في الاتصال: {str(e)}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    print("جاري جلب الأخبار...")
-    latest_news = get_latest_news()
-    
-    if latest_news:
-        print("جاري التلخيص بواسطة AI...")
-        arabic_summary = summarize_news(latest_news)
-        
-        print("جاري النشر...")
-        send_to_telegram(arabic_summary)
-    else:
-        print("لا توجد أخبار جديدة.")
+    summary = fetch_and_summarize()
+    if summary:
+        send_telegram(summary)
