@@ -17,11 +17,10 @@ jobs:
           python-version: '3.11'
       - run: pip install feedparser requests google-genai
       - name: Restore sent cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: sent_articles.json
           key: sent-articles-v1
-          restore-keys: sent-articles-v1
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -31,7 +30,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: sent_articles.json
-          key: sent-articles-v1
+          key: sent-articles-v1-${{ github.run_id }}
 
   breaking-news:
     if: github.event.schedule == '*/15 * * * *'
@@ -43,11 +42,10 @@ jobs:
           python-version: '3.11'
       - run: pip install feedparser requests google-genai
       - name: Restore breaking cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: sent_breaking.json
           key: sent-breaking-v1
-          restore-keys: sent-breaking-v1
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -57,7 +55,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: sent_breaking.json
-          key: sent-breaking-v1
+          key: sent-breaking-v1-${{ github.run_id }}
 
   daily-report:
     if: github.event.schedule == '0 17 * * *'
