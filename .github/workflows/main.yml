@@ -1,11 +1,10 @@
-name: MT5 News Bot - Full System
+﻿name: MT5 News Bot - Full System
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
     - cron: '*/15 * * * *'
     - cron: '0 17 * * *'
-    - cron: '*/1 * * * *'
 
 jobs:
   scheduled-news:
@@ -17,19 +16,22 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install feedparser requests google-genai
-      - uses: actions/cache@v4
+      - name: Restore sent cache
+        uses: actions/cache@v4
         with:
           path: sent_articles.json
-          key: sent-articles-cache
+          key: sent-articles-v1
+          restore-keys: sent-articles-v1
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python bot.py
-      - uses: actions/cache@v4
+      - name: Save sent cache
+        uses: actions/cache/save@v4
         with:
           path: sent_articles.json
-          key: sent-articles-cache
+          key: sent-articles-v1
 
   breaking-news:
     if: github.event.schedule == '*/15 * * * *'
@@ -40,19 +42,22 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install feedparser requests google-genai
-      - uses: actions/cache@v4
+      - name: Restore breaking cache
+        uses: actions/cache@v4
         with:
           path: sent_breaking.json
-          key: sent-breaking-cache
+          key: sent-breaking-v1
+          restore-keys: sent-breaking-v1
       - env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python breaking.py
-      - uses: actions/cache@v4
+      - name: Save breaking cache
+        uses: actions/cache/save@v4
         with:
           path: sent_breaking.json
-          key: sent-breaking-cache
+          key: sent-breaking-v1
 
   daily-report:
     if: github.event.schedule == '0 17 * * *'
@@ -68,26 +73,3 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python daily.py
-
-  interactive-bot:
-    if: github.event.schedule == '*/1 * * * *'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install feedparser requests google-genai
-      - uses: actions/cache@v4
-        with:
-          path: bot_offset.json
-          key: bot-offset-cache
-      - env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python interactive.py
-      - uses: actions/cache@v4
-        with:
-          path: bot_offset.json
-          key: bot-offset-cache
