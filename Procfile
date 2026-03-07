@@ -1,1 +1,1 @@
-web: python interactive.py
+worker: python bot.py
