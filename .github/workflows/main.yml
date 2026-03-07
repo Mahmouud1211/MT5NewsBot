@@ -1,9 +1,8 @@
-﻿name: MT5 News Bot - Full System
+name: MT5 News Bot - Full System
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 */6 * * *'
-    - cron: '*/15 * * * *'
     - cron: '0 17 * * *'
 
 jobs:
@@ -12,50 +11,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: `${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: pip install feedparser requests google-genai
-      - name: Restore sent cache
-        uses: actions/cache/restore@v4
-        with:
-          path: sent_articles.json
-          key: sent-articles-v1
       - env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: `${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: `${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: `${{ secrets.TELEGRAM_CHAT_ID }}
         run: python bot.py
-      - name: Save sent cache
-        uses: actions/cache/save@v4
-        with:
-          path: sent_articles.json
-          key: sent-articles-v1-${{ github.run_id }}
-
-  breaking-news:
-    if: github.event.schedule == '*/15 * * * *'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install feedparser requests google-genai
-      - name: Restore breaking cache
-        uses: actions/cache/restore@v4
-        with:
-          path: sent_breaking.json
-          key: sent-breaking-v1
-      - env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python breaking.py
-      - name: Save breaking cache
-        uses: actions/cache/save@v4
-        with:
-          path: sent_breaking.json
-          key: sent-breaking-v1-${{ github.run_id }}
+      - name: Save sent list to repo
+        run: |
+          git config user.email "bot@github.com"
+          git config user.name "NewsBot"
+          git add sent_articles.json || true
+          git diff --staged --quiet || git commit -m "Update sent articles"
+          git push || true
 
   daily-report:
     if: github.event.schedule == '0 17 * * *'
@@ -67,7 +40,7 @@ jobs:
           python-version: '3.11'
       - run: pip install feedparser requests google-genai
       - env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GEMINI_API_KEY: `${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: `${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: `${{ secrets.TELEGRAM_CHAT_ID }}
         run: python daily.py
