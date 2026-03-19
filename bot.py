@@ -2,13 +2,13 @@ import feedparser
 import requests
 import os
 import sys
-import json
+import time
+from email.utils import parsedate_to_datetime
 from google import genai
 
 API_KEY = os.environ.get("GEMINI_API_KEY")
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-SENT_FILE = "sent_articles.json"
 
 RSS_FEEDS = [
     "https://techcrunch.com/category/artificial-intelligence/feed/",
@@ -19,128 +19,98 @@ RSS_FEEDS = [
 ]
 
 KEYWORDS = [
-    "gold", "ذهب", "market", "fed", "federal reserve", "nvidia", "apple",
-    "microsoft", "google", "amazon", "meta", "oil", "inflation", "rate",
-    "stock", "AI", "artificial intelligence", "bitcoin", "crypto", "dollar",
-    "nasdaq", "s&p", "dow", "earnings", "gdp", "recession", "interest rate",
-    "openai", "anthropic", "gemini", "tesla", "semiconductor", "chip"
+    "gold","market","fed","federal reserve","nvidia","apple","microsoft",
+    "google","amazon","meta","oil","inflation","rate","stock","AI",
+    "artificial intelligence","bitcoin","crypto","dollar","nasdaq","s&p",
+    "dow","earnings","gdp","recession","interest rate","openai","anthropic",
+    "gemini","tesla","semiconductor","chip","war","sanctions","opec",
+    "crude","palantir","iran","ukraine"
 ]
 
-def load_sent():
-    if os.path.exists(SENT_FILE):
-        with open(SENT_FILE, "r") as f:
-            return set(json.load(f))
-    return set()
-
-def save_sent(sent):
-    with open(SENT_FILE, "w") as f:
-        json.dump(list(sent)[-200:], f)
-
-def fetch_news(sent):
+def fetch_news():
+    jordan_hour = (time.gmtime().tm_hour + 3) % 24
+    if jordan_hour >= 20 or jordan_hour < 10:
+        print(f"ساعة الصمت ({jordan_hour}:00) لا ارسال.")
+        return []
+    six_hours_ago = time.time() - (6 * 60 * 60)
     all_entries = []
     for url in RSS_FEEDS:
         try:
             feed = feedparser.parse(url)
             all_entries.extend(feed.entries)
         except Exception as e:
-            print(f"⚠️ فشل جلب: {url} — {e}")
-
-    # رتّب حسب الأحدث
-    all_entries.sort(key=lambda x: x.get('published_parsed') or (0,), reverse=True)
-
-    # فلتر الأخبار المرسلة مسبقاً
-    new_entries = [e for e in all_entries if e.get('link') and e.link not in sent]
-
-    # فلتر حسب الكلمات المفتاحية
-    filtered = [
-        e for e in new_entries
-        if any(k.lower() in (e.title + e.get('summary', '')).lower() for k in KEYWORDS)
-    ]
-
-    return filtered
+            print(f"warning: {url} - {e}")
+    recent = []
+    for e in all_entries:
+        try:
+            pub = parsedate_to_datetime(e.get("published","")).timestamp()
+            if pub > six_hours_ago:
+                recent.append(e)
+        except:
+            pass
+    filtered = [e for e in recent if any(k.lower() in (e.title + e.get("summary","")).lower() for k in KEYWORDS)]
+    seen_titles = set()
+    unique = []
+    for e in filtered:
+        title_key = e.title[:50].lower().strip()
+        if title_key not in seen_titles:
+            seen_titles.add(title_key)
+            unique.append(e)
+    return unique
 
 def build_news_text(entries):
     news_text = ""
     for entry in entries[:5]:
         title = entry.title
-        summary = entry.get('summary', '')[:400]
-        source = entry.get('source', {}).get('title', 'Unknown')
+        summary = entry.get("summary","")[:400]
+        source = entry.get("source",{}).get("title","")
         news_text += f"Source: {source}\nTitle: {title}\nSummary: {summary}\n\n"
     return news_text
 
-def summarize_with_gemini(news_text):
-    client = genai.Client(api_key=API_KEY)
-
-    prompt = (
-        "أنت محلل مالي وتقني متخصص لمتداولي الذهب والأسهم في السعودية والأردن.\n\n"
-        "مهمتك تحليل الأخبار التالية وتقديمها بهذا الشكل الثابت:\n\n"
-        "1️⃣ لكل خبر مهم:\n"
-        "   • <b>عنوان الخبر</b> + إيموجي معبّر\n"
-        "   • ملخص سريع بجملتين\n"
-        "   • 📊 التأثير المتوقع: [صعود 📈 / هبوط 📉 / ترقب ⚠️] على الذهب أو الأسهم\n\n"
-        "2️⃣ في النهاية:\n"
-        "   <b>🎯 توصية المتداول اليوم:</b> جملة واحدة واضحة وعملية\n\n"
-        "قواعد صارمة:\n"
-        "- استخدم <b>للعناوين فقط</b>\n"
-        "- لا تذكر أخباراً غير مؤثرة على الأسواق\n"
-        "- الأسلوب: مباشر، واثق، احترافي\n"
-        "- اللغة: العربية فقط\n\n"
-        f"الأخبار:\n{news_text}"
-    )
-
-    response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
-        contents=prompt
-    )
-
-    return response.text
-
-def send_to_telegram(text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    res = requests.post(url, json={
-        "chat_id": CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML"
-    })
-    return res
-
 def run_bot():
-    print("--- Sniper Bot V9.0 ---")
-
+    print("--- Sniper Bot V10.0 ---")
     if not all([API_KEY, BOT_TOKEN, CHAT_ID]):
-        sys.exit("❌ خطأ: تأكد من إضافة الـ Secrets في GitHub.")
-
-    print("Step 1: جلب الأخبار من المصادر...")
-    sent = load_sent()
-    entries = fetch_news(sent)
-
+        sys.exit("Error: Secrets missing.")
+    print("Step 1: جلب الاخبار...")
+    entries = fetch_news()
     if not entries:
-        print("✅ لا يوجد أخبار جديدة مؤثرة الآن.")
+        print("لا يوجد اخبار - انهاء.")
         sys.exit(0)
-
-    print(f"Step 2: وُجد {len(entries)} خبر جديد — جاري التحليل...")
+    print(f"Step 2: وجد {len(entries)} خبر - جاري التحليل...")
     news_text = build_news_text(entries)
-
     try:
-        summary = summarize_with_gemini(news_text)
+        client = genai.Client(api_key=API_KEY)
+        prompt = (
+            "انت محلل مالي وتقني متخصص لمتداولي الذهب والاسهم في السعودية والاردن.\n\n"
+            "مهمتك تحليل الاخبار التالية وتقديمها بهذا الشكل الثابت:\n\n"
+            "لكل خبر مهم:\n"
+            "   <b>عنوان الخبر</b> + ايموجي معبر\n"
+            "   ملخص سريع بجملتين\n"
+            "   التاثير المتوقع: [صعود / هبوط / ترقب] على الذهب او الاسهم\n\n"
+            "في النهاية:\n"
+            "   <b>توصية المتداول اليوم:</b> جملة واحدة واضحة وعملية\n\n"
+            "قواعد:\n"
+            "- استخدم <b> للعناوين فقط\n"
+            "- لا تذكر اخبارا غير مؤثرة على الاسواق\n"
+            "- العربية فقط\n\n"
+            f"الاخبار:\n{news_text}"
+        )
+        response = client.models.generate_content(model="gemini-2.5-flash-lite", contents=prompt)
+        summary = response.text
         if not summary:
             raise Exception("Empty AI response")
-        print("✅ تم توليد التحليل بنجاح.")
-
-        print("Step 3: الإرسال إلى تيليجرام...")
-        res = send_to_telegram(summary)
-
+        print("Step 3: الارسال...")
+        res = requests.post(
+            f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={"chat_id": CHAT_ID, "text": summary, "parse_mode": "HTML"}
+        )
         if res.status_code == 200:
-            for entry in entries[:5]:
-                sent.add(entry.link)
-            save_sent(sent)
-            print("💎 تمت العملية بنجاح!")
+            print("Done!")
         else:
-            print(f"❌ خطأ تيليجرام: {res.text}")
+            print(f"Telegram error: {res.text}")
             sys.exit(1)
-
     except Exception as e:
-        print(f"❌ خطأ فني: {str(e)}")
+        print(f"Error: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
